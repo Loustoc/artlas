@@ -6,7 +6,6 @@ import { Pane } from "tweakpane";
 
 const initScene = (canvasEl: HTMLCanvasElement) => {
   const raycaster = new THREE.Raycaster();
-  const cursorRaycast = new THREE.Raycaster();
   const pane = new Pane();
   const PARAMS = {
     color: "#ff0000",
@@ -28,13 +27,17 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height);
   camera.position.z = 3;
   scene.add(camera);
-
+  const mouseHelper = new THREE.Mesh(
+    new THREE.BoxGeometry(0.01, 0.01, 1),
+    new THREE.MeshNormalMaterial()
+  );
+  scene.add(mouseHelper);
   const renderer = new THREE.WebGLRenderer({
     canvas: canvasEl,
   });
 
-  // const controls = new OrbitControls(camera, renderer.domElement);
-  // controls.update();
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.update();
 
   renderer.setSize(sizes.width, sizes.height);
   const planetGeometry = new THREE.SphereGeometry(1, 100, 100);
@@ -58,8 +61,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   light.lookAt(0, 0, 0);
   scene.add(light);
   const pointer = new THREE.Vector2();
-
-  function onPointerMove(event) {
+  function onPointerMove(event: PointerEvent) {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }
@@ -72,6 +74,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     // if (mousedown) console.log(e);
   });
   document.addEventListener("mouseup", (e) => {
+    controls.enabled = true;
     // console.log(e);
     mousedown = false;
   });
@@ -80,7 +83,6 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   window.addEventListener("pointermove", onPointerMove);
   function animate() {
     raycaster.setFromCamera(pointer, camera);
-    cursorRaycast.setFromCamera(decal, camera);
     const intersects = raycaster.intersectObjects(scene.children);
     requestAnimationFrame(animate);
     intersects.forEach((intersect, i) => {
@@ -88,14 +90,18 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
       if (decal) {
         decal.geometry.dispose();
       }
+      if (!intersects[i].face?.normal) return;
+      mouseHelper.position.copy(intersects[i].point);
+      mouseHelper.lookAt(new THREE.Vector3(0, 0, 0));
+      const orientation = new THREE.Euler();
+      orientation.copy(mouseHelper.rotation);
       const decalGeometry = new DecalGeometry(
         planetMesh,
         intersects[i].point,
-        intersects[i].face.normal,
+        orientation,
         new THREE.Vector3(0.2, 0.2, 0.2)
       );
       decal.geometry = decalGeometry;
-      decal.geometry.translate(0, 0, 0.001);
       decal.material = new THREE.MeshBasicMaterial({
         map: decalText,
         transparent: true,
@@ -103,9 +109,10 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
         depthWrite: false,
         side: THREE.DoubleSide,
       });
-      scene.add(decal);
 
+      scene.add(decal);
       if (mousedown) {
+        controls.enabled = false;
         const face = intersects[i].face;
         const vertexIndex = face?.a;
         const position = planetGeometry.attributes.position;
@@ -150,7 +157,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
         position.needsUpdate = true;
       }
     });
-    // controls.update();
+    controls.update();
     // required if controls.enableDamping or controls.autoRotate are set to true
     renderer.render(scene, camera);
   }

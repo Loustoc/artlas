@@ -50,8 +50,8 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     })
   );
 
-  pane.addBinding(PARAMS, "wireframe").on("change", (value) => {
-    planetMesh.material.wireframe = !planetMesh.material.wireframe;
+  pane.addBinding(PARAMS, "wireframe").on("change", (e) => {
+    planetMesh.material.wireframe = e.value;
   });
 
   planetMesh.name = "planet";
@@ -66,16 +66,11 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }
   let mousedown = false;
-  document.addEventListener("mousedown", (e) => {
-    // console.log(e);
+  document.addEventListener("mousedown", () => {
     mousedown = true;
   });
-  document.addEventListener("mousemove", (e) => {
-    // if (mousedown) console.log(e);
-  });
-  document.addEventListener("mouseup", (e) => {
+  document.addEventListener("mouseup", () => {
     controls.enabled = true;
-    // console.log(e);
     mousedown = false;
   });
   let decalText = new THREE.TextureLoader().load(cursorTexture);

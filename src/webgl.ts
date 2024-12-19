@@ -3,6 +3,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DecalGeometry } from "three/addons/geometries/DecalGeometry.js";
 import cursorTexture from "./assets/textures/cursor_white.png";
 import { Pane } from "tweakpane";
+import FragmentShader from "./assets/webgl/fragment.frag?raw";
+import VertexShader from "./assets/webgl/vertex.vert?raw";
 
 const initScene = (canvasEl: HTMLCanvasElement) => {
   const raycaster = new THREE.Raycaster();
@@ -13,7 +15,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     sculpt: 1,
     threshold: 0.15,
     intensity: 0.01,
-    wireframe: true,
+    wireframe: false,
   };
 
   pane.addBinding(PARAMS, "sculpt", { step: 2, min: -1, max: 1 });
@@ -40,12 +42,12 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   controls.update();
 
   renderer.setSize(sizes.width, sizes.height);
-  const planetGeometry = new THREE.SphereGeometry(1, 100, 100);
-
+  const planetGeometry = new THREE.SphereGeometry(1, 150, 150);
   const planetMesh = new THREE.Mesh(
     planetGeometry,
-    new THREE.MeshPhongMaterial({
-      color: 0x00ff00,
+    new THREE.ShaderMaterial({
+      fragmentShader: FragmentShader,
+      vertexShader: VertexShader,
       wireframe: PARAMS.wireframe,
     })
   );
@@ -82,10 +84,9 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     requestAnimationFrame(animate);
     intersects.forEach((intersect, i) => {
       if (intersect.object.name !== "planet") return;
-      if (decal) {
-        decal.geometry.dispose();
-      }
+      if (decal) decal.geometry.dispose();
       if (!intersects[i].face?.normal) return;
+
       mouseHelper.position.copy(intersects[i].point);
       mouseHelper.lookAt(new THREE.Vector3(0, 0, 0));
       const orientation = new THREE.Euler();
@@ -105,7 +106,26 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
         side: THREE.DoubleSide,
       });
 
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(
+        intersects[i].object.matrixWorld
+      );
+      const worldNormal = intersects[i].face.normal
+        .clone()
+        .applyMatrix3(normalMatrix)
+        .normalize();
+
+      const positions = decalGeometry.attributes.position.array;
+      const offset = 0.01;
+
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] += worldNormal.x * offset;
+        positions[i + 1] += worldNormal.y * offset;
+        positions[i + 2] += worldNormal.z * offset;
+      }
+      decalGeometry.attributes.position.needsUpdate = true;
+
       scene.add(decal);
+
       if (mousedown) {
         controls.enabled = false;
         const face = intersects[i].face;

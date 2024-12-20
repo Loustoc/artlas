@@ -1,10 +1,7 @@
-#define PI 3.1415926535897932384626433832795
-
 varying vec2 vUv;
-
-uniform vec2 drawnUV;
 
 void main()
 {
-    gl_FragColor = vec4(0., 1.0, .0,1.);
+    vec3 colorDarkest = vec3(.0,.3,.0);
+    gl_FragColor = vec4(colorDarkest, 0,1.);
 }

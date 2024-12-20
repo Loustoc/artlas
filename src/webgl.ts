@@ -3,8 +3,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DecalGeometry } from "three/addons/geometries/DecalGeometry.js";
 import cursorTexture from "./assets/textures/cursor_white.png";
 import { Pane } from "tweakpane";
-import FragmentShader from "./assets/webgl/fragment.frag?raw";
-import VertexShader from "./assets/webgl/vertex.vert?raw";
+import PlanetFragmentShader from "./assets/webgl/planet/fragment.frag?raw";
+import PlanetVertexShader from "./assets/webgl/planet/vertex.vert?raw";
 
 const initScene = (canvasEl: HTMLCanvasElement) => {
   const raycaster = new THREE.Raycaster();
@@ -46,8 +46,8 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   const planetMesh = new THREE.Mesh(
     planetGeometry,
     new THREE.ShaderMaterial({
-      fragmentShader: FragmentShader,
-      vertexShader: VertexShader,
+      fragmentShader: PlanetFragmentShader,
+      vertexShader: PlanetVertexShader,
       wireframe: PARAMS.wireframe,
     })
   );

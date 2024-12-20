@@ -55,6 +55,14 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   pane.addBinding(PARAMS, "wireframe").on("change", (e) => {
     planetMesh.material.wireframe = e.value;
   });
+  const sculptArray = new Float32Array(
+    planetGeometry.attributes.position.count
+  );
+  sculptArray.fill(1.0);
+  planetGeometry.setAttribute(
+    "sculptAttribute",
+    new THREE.BufferAttribute(sculptArray, 1)
+  );
 
   planetMesh.name = "planet";
   scene.add(planetMesh);
@@ -156,18 +164,23 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
             const dist2Center = neighbourVertex.distanceTo(
               new THREE.Vector3(0, 0, 0)
             );
-            const factor =
+            let factor =
               (dist2Center + PARAMS.sculpt * PARAMS.intensity) / dist2Center;
+            factor =
+              1 +
+              PARAMS.sculpt *
+                Math.abs(1 - factor) *
+                (1 - distance / PARAMS.threshold);
             savedVertex.multiplyScalar(
               1 +
                 PARAMS.sculpt *
                   Math.abs(1 - factor) *
                   (1 - distance / PARAMS.threshold)
             );
-            planetGeometry.attributes.position.array[i] = savedVertex.x;
-            planetGeometry.attributes.position.array[i + 1] = savedVertex.y;
-            planetGeometry.attributes.position.array[i + 2] = savedVertex.z;
+            sculptArray[i / 3] = sculptArray[i / 3] * factor;
           }
+          planetGeometry.attributes.sculptAttribute.array.set(sculptArray);
+          planetGeometry.attributes.sculptAttribute.needsUpdate = true;
         }
         position.needsUpdate = true;
       }
@@ -176,7 +189,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     // required if controls.enableDamping or controls.autoRotate are set to true
     renderer.render(scene, camera);
   }
-  animate();
+  requestAnimationFrame(animate);
 };
 
 export { initScene };

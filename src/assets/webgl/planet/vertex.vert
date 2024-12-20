@@ -1,7 +1,6 @@
-varying vec2 vUv;
+attribute float sculptAttribute;
 
-void main()
-{
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    vUv = uv;
+void main() {
+    vec3 adjustedPosition = position * sculptAttribute;
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(adjustedPosition, 1.0);
 }

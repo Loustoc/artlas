@@ -5,6 +5,8 @@ import cursorTexture from "./assets/textures/cursor_white.png";
 import { Pane } from "tweakpane";
 import PlanetFragmentShader from "./assets/webgl/planet/fragment.frag?raw";
 import PlanetVertexShader from "./assets/webgl/planet/vertex.vert?raw";
+import WaterFragmentShader from "./assets/webgl/water/fragment.frag?raw";
+import WaterVertexShader from "./assets/webgl/water/vertex.vert?raw";
 import GrassFragmentShader from "./assets/webgl/grass/fragment.frag?raw";
 import GrassVertexShader from "./assets/webgl/grass/vertex.vert?raw";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -22,10 +24,9 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     threshold: 0.15,
     intensity: 0.01,
     wireframe: false,
+    grassSize: 0.05,
+    waterHeight: 1,
   };
-
-  pane.addBinding(PARAMS, "sculpt", { step: 2, min: -1, max: 1 });
-  pane.addBinding(PARAMS, "intensity", { step: 0.01, min: 0, max: 0.05 });
 
   const scene = new THREE.Scene();
   const sizes = {
@@ -48,12 +49,23 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   controls.update();
 
   renderer.setSize(sizes.width, sizes.height);
+
   const planetGeometry = new THREE.SphereGeometry(1, 150, 150);
   const planetMesh = new THREE.Mesh(
     planetGeometry,
     new THREE.ShaderMaterial({
       fragmentShader: PlanetFragmentShader,
       vertexShader: PlanetVertexShader,
+      wireframe: PARAMS.wireframe,
+    })
+  );
+
+  const waterGeometry = new THREE.SphereGeometry(0.7, 150, 150);
+  const waterSphereMesh = new THREE.Mesh(
+    waterGeometry,
+    new THREE.ShaderMaterial({
+      fragmentShader: WaterFragmentShader,
+      vertexShader: WaterVertexShader,
       wireframe: PARAMS.wireframe,
     })
   );
@@ -72,6 +84,9 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
 
   planetMesh.name = "planet";
   scene.add(planetMesh);
+  scene.add(waterSphereMesh);
+  let lawnMowerMode = false;
+  let orbitMode = false;
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(0, 2, 3);
   light.lookAt(0, 0, 0);
@@ -86,8 +101,29 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     mousedown = true;
   });
   document.addEventListener("mouseup", () => {
-    controls.enabled = true;
     mousedown = false;
+  });
+  document.addEventListener("keydown", (e) => {
+    switch (e.key) {
+      case "t":
+        lawnMowerMode = true;
+        break;
+      case "g":
+        orbitMode = true;
+        controls.enabled = true;
+        break;
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    switch (e.key) {
+      case "t":
+        lawnMowerMode = false;
+        break;
+      case "g":
+        orbitMode = false;
+        controls.enabled = false;
+        break;
+    }
   });
   let decalText = new THREE.TextureLoader().load(cursorTexture);
   let decal = new THREE.Mesh();
@@ -95,26 +131,38 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
 
   const dummy = new THREE.Object3D();
 
-  const uniforms = {
+  const grassUniforms = {
     time: {
       value: 0,
     },
+    grassScale: { value: PARAMS.grassSize },
   };
 
   const leavesMaterial = new THREE.ShaderMaterial({
     vertexShader: GrassVertexShader,
     fragmentShader: GrassFragmentShader,
-    uniforms,
+    uniforms: grassUniforms,
     side: THREE.DoubleSide,
   });
 
-  gltf.scene.children[0].geometry.scale(0.05, 0.05, 0.05);
+  (gltf.scene.children[0] as THREE.Mesh).geometry.scale(
+    PARAMS.grassSize,
+    PARAMS.grassSize,
+    PARAMS.grassSize
+  );
 
+  const originalGeometry = (gltf.scene.children[0] as THREE.Mesh).geometry;
   const instancedBufferGeometry = new THREE.InstancedBufferGeometry();
+  instancedBufferGeometry.index = originalGeometry.index;
+  instancedBufferGeometry.attributes.position =
+    originalGeometry.attributes.position;
+  instancedBufferGeometry.attributes.normal =
+    originalGeometry.attributes.normal;
+  instancedBufferGeometry.attributes.uv = originalGeometry.attributes.uv;
   const instanceNumber = 22000;
 
   const instancedMesh = new THREE.InstancedMesh(
-    instancedBufferGeometry.copy(gltf.scene.children[0].geometry),
+    instancedBufferGeometry,
     leavesMaterial,
     instanceNumber
   );
@@ -124,9 +172,29 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
     new THREE.InstancedBufferAttribute(sculptArray, 1)
   );
 
+  controls.enabled = false;
+
+  pane.addBinding(PARAMS, "sculpt", { step: 2, min: -1, max: 1 });
+  pane.addBinding(PARAMS, "intensity", { step: 0.01, min: 0, max: 0.05 });
+  pane
+    .addBinding(PARAMS, "grassSize", { step: 0.001, min: 0, max: 0.08 })
+    .on("change", () => {
+      leavesMaterial.uniforms.grassScale.value = PARAMS.grassSize;
+    });
+  pane.addBinding(PARAMS, "threshold", { step: 0.01, min: 0.1, max: 0.3 });
+  pane
+    .addBinding(PARAMS, "waterHeight", { step: 0.01, min: 0.8, max: 1.5 })
+    .on("change", () => {
+      waterSphereMesh.scale.set(
+        PARAMS.waterHeight,
+        PARAMS.waterHeight,
+        PARAMS.waterHeight
+      );
+    });
+
   scene.add(instancedMesh);
 
-  for (let i = 0; i < instanceNumber; i += 1) {
+  for (let i = 0; i < instanceNumber; i += 100) {
     let index = Math.round(
       Math.random() * planetGeometry.attributes.position.array.length
     );
@@ -165,8 +233,8 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
   }
   instancedMesh.instanceMatrix.needsUpdate = true;
 
-  function animate(timespan) {
-    leavesMaterial.uniforms.time.value = timespan / 3000;
+  function animate(timespan: number) {
+    leavesMaterial.uniforms.time.value = timespan / 1000;
     leavesMaterial.uniformsNeedUpdate = true;
     raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObjects(scene.children);
@@ -214,8 +282,7 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
 
       scene.add(decal);
 
-      if (mousedown) {
-        controls.enabled = false;
+      if (mousedown && !orbitMode) {
         const face = intersects[i].face;
         const vertexIndex = face?.a;
         const position = planetGeometry.attributes.position;
@@ -236,11 +303,6 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
 
           const distance = neighbourVertex.distanceTo(vertex);
           if (distance < PARAMS.threshold) {
-            const savedVertex = new THREE.Vector3(
-              planetGeometry.attributes.position.array[i],
-              planetGeometry.attributes.position.array[i + 1],
-              planetGeometry.attributes.position.array[i + 2]
-            );
             const dist2Center = neighbourVertex.distanceTo(
               new THREE.Vector3(0, 0, 0)
             );
@@ -251,13 +313,12 @@ const initScene = (canvasEl: HTMLCanvasElement) => {
               PARAMS.sculpt *
                 Math.abs(1 - factor) *
                 (1 - distance / PARAMS.threshold);
-            savedVertex.multiplyScalar(
-              1 +
-                PARAMS.sculpt *
-                  Math.abs(1 - factor) *
-                  (1 - distance / PARAMS.threshold)
-            );
-            sculptArray[i / 3] = sculptArray[i / 3] * factor;
+            if (lawnMowerMode) {
+              instancedMesh.setMatrixAt(i / 3, new THREE.Matrix4());
+              instancedMesh.instanceMatrix.needsUpdate = true;
+            } else {
+              sculptArray[i / 3] = sculptArray[i / 3] * factor;
+            }
           }
           planetGeometry.attributes.sculptAttribute.array.set(sculptArray);
           instancedBufferGeometry.attributes.sculptAttribute.array.set(

@@ -24,7 +24,7 @@ const initScene = async (canvasEl: HTMLCanvasElement) => {
     threshold: 0.15,
     intensity: 0.01,
     wireframe: false,
-    grassSize: 0.05,
+    grassSize: 0.048,
     waterHeight: 1,
   };
 
@@ -159,7 +159,7 @@ const initScene = async (canvasEl: HTMLCanvasElement) => {
   instancedBufferGeometry.attributes.normal =
     originalGeometry.attributes.normal;
   instancedBufferGeometry.attributes.uv = originalGeometry.attributes.uv;
-  const instanceNumber = 22000;
+  const instanceNumber = 22280;
 
   const instancedMesh = new THREE.InstancedMesh(
     instancedBufferGeometry,
@@ -194,7 +194,7 @@ const initScene = async (canvasEl: HTMLCanvasElement) => {
 
   scene.add(instancedMesh);
 
-  for (let i = 0; i < instanceNumber; i += 100) {
+  for (let i = 0; i < instanceNumber; i += 5) {
     let index = Math.round(
       Math.random() * planetGeometry.attributes.position.array.length
     );
@@ -205,11 +205,7 @@ const initScene = async (canvasEl: HTMLCanvasElement) => {
       planetGeometry.attributes.position.array[index + 2]
     );
 
-    const referenceAxis = new THREE.Vector3(
-      Math.random(),
-      Math.random(),
-      Math.random()
-    );
+    const referenceAxis = new THREE.Vector3(0, 1, 0);
 
     const normalVector = new THREE.Vector3(
       planetGeometry.attributes.normal.array[index],
@@ -222,13 +218,10 @@ const initScene = async (canvasEl: HTMLCanvasElement) => {
 
     const angle = Math.acos(referenceAxis.dot(normalVector));
 
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromAxisAngle(
-      rotationAxis,
-      angle + (Math.random() * Math.PI) / 2
-    );
+    dummy.quaternion.setFromAxisAngle(rotationAxis, angle);
+    dummy.rotateOnWorldAxis(normalVector, Math.random() * 2 * Math.PI);
     dummy.updateMatrix();
-    dummy.setRotationFromQuaternion(quaternion);
+
     instancedMesh.setMatrixAt(index / 3, dummy.matrix);
   }
   instancedMesh.instanceMatrix.needsUpdate = true;

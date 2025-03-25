@@ -10,8 +10,7 @@ import WaterVertexShader from "./assets/webgl/water/vertex.vert?raw";
 import GrassFragmentShader from "./assets/webgl/grass/fragment.frag?raw";
 import GrassVertexShader from "./assets/webgl/grass/vertex.vert?raw";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-const grassModel =
-  "//cdn.wtlstudio.com/sample.wtlstudio.com/a776537a-3038-4cd0-a90a-dab044a3f7ec.glb";
+const grassModel = "./models/grass.glb";
 
 const initScene = async (canvasEl: HTMLCanvasElement) => {
   const gltf = await new GLTFLoader().loadAsync(grassModel);
